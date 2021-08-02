@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/manifoldco/promptui"
 	"io/ioutil"
+	"log"
 	"os"
 	// "strings"
 )
@@ -24,6 +26,7 @@ var (
 	helpFlag     = flag.Bool("h", false, "Help")
 	verboseFlag  = flag.Bool("v", false, "Verbose")
 	removeFlag   = flag.Int("r", 0, "Remove a todo")
+	clearFlag    = flag.Bool("clear", false, "Clear all todos")
 )
 
 func check(err error) {
@@ -57,14 +60,12 @@ func Remove(index int, file *os.File) {
 
 func Complete(index int, file *os.File) {
 	index--
-	if index < 0 || index >= len(todoList) {
-		print("invalid index\n")
-		return
+	if valid(index) {
+		completeList = append(completeList, todoList[index])
+		todoList = append(todoList[:index], todoList[index+1:]...)
+		update(file)
+		ListFull()
 	}
-	completeList = append(completeList, todoList[index])
-	todoList = append(todoList[:index], todoList[index+1:]...)
-	update(file)
-	ListFull()
 }
 
 func List() {
@@ -78,12 +79,21 @@ func ListFull() {
 	List()
 	print("\nComplete:\n")
 	for i := 0; i < len(completeList); i++ {
-		fmt.Sprint("%v. %v\n", i+1, completeList[i])
+		print(i+1, ". "+completeList[i]+"\n")
 	}
 }
 
-func Clear() {
-
+func Clear(file *os.File) {
+	label := "Are you sure you want to delete all list items?\n"
+	clear := yesNo(label)
+	if !clear {
+		print("No items cleared.\n")
+		return
+	}
+	todoList = []string{}
+	completeList = []string{}
+	update(file)
+	print("Cleared all items.\n")
 }
 
 func Help() {
@@ -92,20 +102,32 @@ func Help() {
 	flag.PrintDefaults()
 }
 
+func yesNo(label string) bool {
+	prompt := promptui.Select{
+		Label: label,
+		Items: []string{"Yes", "No"},
+	}
+	_, result, err := prompt.Run()
+	if err != nil {
+		log.Fatalf("Prompt failed %v\n", err)
+	}
+	return result == "Yes"
+}
+
 func update(file *os.File) {
 	os.Truncate(file.Name(), 0)
+	file.Seek(0, 0)
 	lists.Todo = todoList
 	lists.Completed = completeList
 
 	byteValue, _ := json.Marshal(lists)
-
 	_, err := file.Write(byteValue)
 	check(err)
 }
 
 func main() {
-	// file, error := os.openFile("list.json", os.O_RDWR|os.O_CREATE, 0644)
 
+	// Open file if it exists or create a new one
 	file, err := os.OpenFile("list.json", os.O_RDWR|os.O_CREATE, 0644)
 	check(err)
 
@@ -113,7 +135,6 @@ func main() {
 
 	json.Unmarshal(byteValue, &lists)
 
-	fmt.Printf("%+v\n", lists)
 	todoList = lists.Todo
 	completeList = lists.Completed
 
@@ -122,6 +143,11 @@ func main() {
 	if flag.NArg() > 1 {
 		print("Too many arguments\n")
 		print("Try 'todo -h' for more information\n")
+		return
+	}
+
+	if *clearFlag {
+		Clear(file)
 		return
 	}
 
