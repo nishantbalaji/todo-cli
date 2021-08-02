@@ -3,53 +3,59 @@ package main
 import (
 	// "bufio"
 	"encoding/json"
-	"fmt"
-	"os"
 	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
 	// "strings"
 )
-
-
 
 type Lists struct {
 	Todo      []string `json:"todo"`
 	Completed []string `json:"completed"`
 }
 
-file, err := os.openFile("list.json", os.O_RDWR|os.O_CREATE, 0644)
-check(err)
-
 var (
+	lists        Lists
+	todoList     []string
+	completeList []string
 	addFlag      = flag.String("a", "", "Add a todo")
 	completeFlag = flag.Int("c", 0, "Complete a todo")
 	helpFlag     = flag.Bool("h", false, "Help")
 	verboseFlag  = flag.Bool("v", false, "Verbose")
+	removeFlag   = flag.Int("r", 0, "Remove a todo")
 )
 
-
-func check(err error){
+func check(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
 
+func valid(index int) bool {
+	if index < 0 || index >= len(todoList) {
+		print("invalid index\n")
+		return false
+	}
+	return true
+}
 
-func Add(todo string) {
+func Add(todo string, file *os.File) {
 	todoList = append(todoList, todo)
 	print("added '", todo, "'\n")
 	List()
+	update(file)
 }
 
-func Remove(index int) {
+func Remove(index int, file *os.File) {
 	index--
-	if index < 0 || index >= len(todoList) {
-		print("invalid index\n")
-		return
+	if valid(index) {
+		todoList = append(todoList[:index], todoList[index+1:]...)
+		update(file)
 	}
-	todoList = append(todoList[:index], todoList[index+1:]...)
 }
 
-func Complete(index int) {
+func Complete(index int, file *os.File) {
 	index--
 	if index < 0 || index >= len(todoList) {
 		print("invalid index\n")
@@ -57,6 +63,7 @@ func Complete(index int) {
 	}
 	completeList = append(completeList, todoList[index])
 	todoList = append(todoList[:index], todoList[index+1:]...)
+	update(file)
 	ListFull()
 }
 
@@ -75,14 +82,40 @@ func ListFull() {
 	}
 }
 
+func Clear() {
+
+}
+
 func Help() {
 	fmt.Println("Usage: todo [options]")
 	fmt.Println("Options:")
 	flag.PrintDefaults()
 }
 
+func update(file *os.File) {
+	os.Truncate(file.Name(), 0)
+	lists.Todo = todoList
+	lists.Completed = completeList
+
+	byteValue, _ := json.Marshal(lists)
+
+	_, err := file.Write(byteValue)
+	check(err)
+}
+
 func main() {
 	// file, error := os.openFile("list.json", os.O_RDWR|os.O_CREATE, 0644)
+
+	file, err := os.OpenFile("list.json", os.O_RDWR|os.O_CREATE, 0644)
+	check(err)
+
+	byteValue, _ := ioutil.ReadAll(file)
+
+	json.Unmarshal(byteValue, &lists)
+
+	fmt.Printf("%+v\n", lists)
+	todoList = lists.Todo
+	completeList = lists.Completed
 
 	flag.Parse()
 
@@ -103,12 +136,17 @@ func main() {
 	}
 
 	if *addFlag != "" {
-		Add(*addFlag)
+		Add(*addFlag, file)
+		return
+	}
+
+	if *removeFlag > 0 {
+		Remove(*completeFlag, file)
 		return
 	}
 
 	if *completeFlag > 0 {
-		Complete(*completeFlag)
+		Complete(*completeFlag, file)
 		return
 	}
 
@@ -119,4 +157,6 @@ func main() {
 
 	print("invalid argument\n")
 	print("Try 'todo -h' for more information\n")
+
+	defer file.Close()
 }
