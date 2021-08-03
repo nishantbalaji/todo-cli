@@ -153,7 +153,9 @@ func main() {
 
 	// Parse the flags and perform the appropriate action
 	flag.Parse()
-	if flag.NArg() > 1 {
+	
+	
+	if flag.NFlag() > 1 {
 		print("Too many arguments\n")
 		print("Try 'todo -h' for more information\n")
 		return
@@ -186,6 +188,11 @@ func main() {
 
 	if *completeFlag > 0 {
 		Complete(*completeFlag, file)
+		return
+	}
+
+	if flag.NArg() == 1 {
+		Add(flag.Arg(0), file)
 		return
 	}
 
