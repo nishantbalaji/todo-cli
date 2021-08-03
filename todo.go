@@ -1,7 +1,6 @@
 package main
 
 import (
-	// "bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,18 +8,21 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	// "strings"
 )
 
+// Lists holds the todo and completed lists
 type Lists struct {
 	Todo      []string `json:"todo"`
 	Completed []string `json:"completed"`
 }
 
 var (
+	// Todo Item lists
 	lists        Lists
 	todoList     []string
 	completeList []string
+
+	// Input flags
 	addFlag      = flag.String("a", "", "Add a todo")
 	completeFlag = flag.Int("c", 0, "Complete a todo")
 	helpFlag     = flag.Bool("h", false, "Help")
@@ -29,20 +31,7 @@ var (
 	clearFlag    = flag.Bool("clear", false, "Clear all todos")
 )
 
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func valid(index int) bool {
-	if index < 0 || index >= len(todoList) {
-		print("invalid index\n")
-		return false
-	}
-	return true
-}
-
+// Add appends a todo item to the list
 func Add(todo string, file *os.File) {
 	todoList = append(todoList, todo)
 	print("added '", todo, "'\n")
@@ -50,14 +39,21 @@ func Add(todo string, file *os.File) {
 	update(file)
 }
 
+// Remove removes a todo item from the list
 func Remove(index int, file *os.File) {
 	index--
-	if valid(index) {
-		todoList = append(todoList[:index], todoList[index+1:]...)
-		update(file)
-	}
+	
+	copy(todoList[index:], todoList[index+1:])
+	todoList[len(todoList)-1] = ""
+	todoList = todoList[:len(todoList)-1]
+
+
+	// todoList = append(todoList[:index], todoList[index+1:]...)
+	update(file)
+	
 }
 
+// Complete marks a todo item as completed
 func Complete(index int, file *os.File) {
 	index--
 	if valid(index) {
@@ -68,6 +64,7 @@ func Complete(index int, file *os.File) {
 	}
 }
 
+// List outputs all the todo items
 func List() {
 	print("Todo:\n")
 	for i := 0; i < len(todoList); i++ {
@@ -75,6 +72,7 @@ func List() {
 	}
 }
 
+// ListFull outputs all the todo and completed items
 func ListFull() {
 	List()
 	print("\nComplete:\n")
@@ -83,6 +81,7 @@ func ListFull() {
 	}
 }
 
+// Clear clears all todo and completed items after getting confirmation
 func Clear(file *os.File) {
 	label := "Are you sure you want to delete all list items?\n"
 	clear := yesNo(label)
@@ -96,6 +95,7 @@ func Clear(file *os.File) {
 	print("Cleared all items.\n")
 }
 
+// Help prints the usage of the todo command
 func Help() {
 	fmt.Println("Usage: todo [options]")
 	fmt.Println("Options:")
@@ -125,21 +125,42 @@ func update(file *os.File) {
 	check(err)
 }
 
+
+// Check for errors
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Check index for validity
+func valid(index int) bool {
+	if index < 0 || index >= len(todoList) {
+		print("invalid index\n")
+		return false
+	}
+	return true
+}
+
+
 func main() {
 
 	// Open file if it exists or create a new one
 	file, err := os.OpenFile("list.json", os.O_RDWR|os.O_CREATE, 0644)
 	check(err)
 
+	defer file.Close()
+
 	byteValue, _ := ioutil.ReadAll(file)
 
+	// Get the list from the file and initialize variables
 	json.Unmarshal(byteValue, &lists)
 
 	todoList = lists.Todo
 	completeList = lists.Completed
 
+	// Parse the flags and perform the appropriate action
 	flag.Parse()
-
 	if flag.NArg() > 1 {
 		print("Too many arguments\n")
 		print("Try 'todo -h' for more information\n")
@@ -183,6 +204,4 @@ func main() {
 
 	print("invalid argument\n")
 	print("Try 'todo -h' for more information\n")
-
-	defer file.Close()
 }
