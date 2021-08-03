@@ -1,4 +1,4 @@
-module github.com/nishantbalaji/todo
+module github.com/nishantbalaji/todo-cli
 
 go 1.16
 
