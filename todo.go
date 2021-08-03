@@ -42,15 +42,9 @@ func Add(todo string, file *os.File) {
 // Remove removes a todo item from the list
 func Remove(index int, file *os.File) {
 	index--
-	
-	copy(todoList[index:], todoList[index+1:])
-	todoList[len(todoList)-1] = ""
-	todoList = todoList[:len(todoList)-1]
-
-
-	// todoList = append(todoList[:index], todoList[index+1:]...)
+	todoList = append(todoList[:index], todoList[index+1:]...)
 	update(file)
-	
+	ListFull()
 }
 
 // Complete marks a todo item as completed
@@ -125,7 +119,6 @@ func update(file *os.File) {
 	check(err)
 }
 
-
 // Check for errors
 func check(err error) {
 	if err != nil {
@@ -141,7 +134,6 @@ func valid(index int) bool {
 	}
 	return true
 }
-
 
 func main() {
 
@@ -188,7 +180,7 @@ func main() {
 	}
 
 	if *removeFlag > 0 {
-		Remove(*completeFlag, file)
+		Remove(*removeFlag, file)
 		return
 	}
 
