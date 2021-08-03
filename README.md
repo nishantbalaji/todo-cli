@@ -3,6 +3,10 @@
 This is a to-do list application that runs entirely in your cli! 
 
 # Installation
+* Clone the repository
+* Install [go](https://golang.org)
+* Open a terminal window in the repository and run `go install`
+* Use the program from anywhere!
 
 # Usage
 
